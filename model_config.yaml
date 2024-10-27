@@ -1,0 +1,4 @@
+image_input_size: 224
+weights_format: h5
+weights_model: imagenet
+pooling: avg
