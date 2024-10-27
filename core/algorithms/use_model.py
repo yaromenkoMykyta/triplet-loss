@@ -37,8 +37,11 @@ def read_image(path):
 
 
 def load_model(path):
-    model = keras.models.load_model(path, safe_mode=False, compile=False, custom_objects={"tf": tf})
+    model = keras.models.load_model(
+        path, safe_mode=False, compile=False, custom_objects={"tf": tf}
+    )
     return model
+
 
 def main():
     model = load_model("model.h5")

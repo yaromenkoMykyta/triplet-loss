@@ -9,7 +9,13 @@ import tensorflow as tf
 from tensorflow.keras.layers import Flatten, Dense, Dropout, BatchNormalization
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Lambda
-from core.datatypes.triplet import TrainingConfig, TripletPath, Path, TripletBatch, Triplet
+from core.datatypes.triplet import (
+    TrainingConfig,
+    TripletPath,
+    Path,
+    TripletBatch,
+    Triplet,
+)
 import matplotlib.pyplot as plt
 import yaml
 
@@ -127,9 +133,7 @@ def create_triplets(
                 path_to_neg_file = os.path.join(directory, neg_category)
                 negative = Path(path_to_neg_file, neg_file)
                 triplet = TripletPath(anchor, positive, negative)
-                triplets.append(
-                    triplet
-                )  # Append tripplet to list
+                triplets.append(triplet)  # Append tripplet to list
 
     random.shuffle(triplets)
     print(f"Amount of triplets: {len(triplets)}")
@@ -191,19 +195,23 @@ def get_encoder(
         pretrained_model.layers[i].trainable = False
 
     # MLP
-    encoder_model = Sequential([
-        pretrained_model,
-        Flatten(),
-        Dense(1024, activation='relu'),
-        Dropout(0.3),
-        BatchNormalization(),
-        Dense(512, activation='relu'),
-        Dropout(0.2),
-        BatchNormalization(),
-        Dense(256, activation="relu"),
-        Dropout(0.05),
-        BatchNormalization(),
-        Dense(128, activation=None)], name="Encoder_Model")
+    encoder_model = Sequential(
+        [
+            pretrained_model,
+            Flatten(),
+            Dense(1024, activation="relu"),
+            Dropout(0.3),
+            BatchNormalization(),
+            Dense(512, activation="relu"),
+            Dropout(0.2),
+            BatchNormalization(),
+            Dense(256, activation="relu"),
+            Dropout(0.05),
+            BatchNormalization(),
+            Dense(128, activation=None),
+        ],
+        name="Encoder_Model",
+    )
 
     encoder_model.add(Lambda(lambda x: tf.math.l2_normalize(x, axis=1)))
 
@@ -221,7 +229,9 @@ def evaluate(
     ap_distances, an_distances = [], []
 
     for anchor, positive, negative in get_batch(
-        test_triplet, config=training_config, preprocessing=True,
+        test_triplet,
+        config=training_config,
+        preprocessing=True,
     ):
         if len(anchor.shape) > 1:
             anchor_representation = encoder(anchor)
@@ -265,8 +275,9 @@ def evaluate(
     return test_accuracy
 
 
-def train_triplet_loss_model(data_path: str,
-                             training_config: TrainingConfig) -> tf.keras.Model:
+def train_triplet_loss_model(
+    data_path: str, training_config: TrainingConfig
+) -> tf.keras.Model:
     """
     Train model with triplet loss
     \n
@@ -298,14 +309,27 @@ def train_triplet_loss_model(data_path: str,
         first_decay_steps=training_config.first_decay_steps,
         t_mul=training_config.t_mul,
         m_mul=training_config.m_mul,
-        alpha=training_config.alpha  #
+        alpha=training_config.alpha,  #
     )
     optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-    train_list, test_list = split_dataset(data_path, split=training_config.split_value_for_dataset)
-    train_triplet = create_triplets(data_path, train_list, max_files=training_config.max_images_num_per_category)
-    test_triplet = create_triplets(data_path, test_list, max_files=training_config.max_images_num_per_test_category)
+    train_list, test_list = split_dataset(
+        data_path, split=training_config.split_value_for_dataset
+    )
+    train_triplet = create_triplets(
+        data_path, train_list, max_files=training_config.max_images_num_per_category
+    )
+    test_triplet = create_triplets(
+        data_path, test_list, max_files=training_config.max_images_num_per_test_category
+    )
 
-    encoder = get_encoder(input_shape=(training_config.image_input_size, training_config.image_input_size, 3), pretrained_trainable_layers=27)
+    encoder = get_encoder(
+        input_shape=(
+            training_config.image_input_size,
+            training_config.image_input_size,
+            3,
+        ),
+        pretrained_trainable_layers=27,
+    )
     encoder.compile()
     encoder.summary()
 
@@ -319,7 +343,7 @@ def train_triplet_loss_model(data_path: str,
 
     for epoch in tqdm(range(1, training_config.epochs + 1)):
         for anchor, positive, negative in get_batch(
-            train_triplet,config=training_config, preprocessing=True
+            train_triplet, config=training_config, preprocessing=True
         ):
             if len(anchor.shape) > 1:
                 with tf.GradientTape() as tape:
@@ -335,15 +359,22 @@ def train_triplet_loss_model(data_path: str,
                     )
 
                     loss = tf.reduce_mean(
-                        tf.maximum(ap_distance - an_distance + training_config.margin, 0.0)
+                        tf.maximum(
+                            ap_distance - an_distance + training_config.margin, 0.0
+                        )
                     )
                 gradients = tape.gradient(loss, encoder.trainable_variables)
                 optimizer.apply_gradients(zip(gradients, encoder.trainable_variables))
 
                 train_accuracy = np.mean(
-                    [np.array(ap_distance) < training_config.margin, np.array(an_distance) > training_config.margin]
+                    [
+                        np.array(ap_distance) < training_config.margin,
+                        np.array(an_distance) > training_config.margin,
+                    ]
                 )
-                train_test_metric = np.mean(np.array(ap_distance) < np.array(an_distance))
+                train_test_metric = np.mean(
+                    np.array(ap_distance) < np.array(an_distance)
+                )
                 with summary_writer.as_default():
                     tf.summary.scalar(f"Train accuracy", train_accuracy, step)
                     tf.summary.scalar(
@@ -352,10 +383,14 @@ def train_triplet_loss_model(data_path: str,
                         step,
                     )
                     tf.summary.scalar(
-                        f"Train Mean anchor positive distance", np.mean(ap_distance), step
+                        f"Train Mean anchor positive distance",
+                        np.mean(ap_distance),
+                        step,
                     )
                     tf.summary.scalar(
-                        f"Train Mean anchor negative distance", np.mean(an_distance), step
+                        f"Train Mean anchor negative distance",
+                        np.mean(an_distance),
+                        step,
                     )
                     tf.summary.scalar(
                         f"Train STD anchor positive distance", np.std(ap_distance), step
@@ -372,7 +407,7 @@ def train_triplet_loss_model(data_path: str,
                         summary_writer=summary_writer,
                         test_triplet=test_triplet,
                         config=training_config,
-                        step=step
+                        step=step,
                     )
 
                     if test_accuracy >= max_acc:
@@ -439,6 +474,7 @@ def read_yaml_training_config(file_path: str) -> TrainingConfig:
         config = yaml.safe_load(file)
 
     return TrainingConfig(**config)
+
 
 if __name__ == "__main__":
     training_config = read_yaml_training_config("../../training_config.yaml")
